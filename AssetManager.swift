@@ -1,10 +1,10 @@
-//  myViewController.swift
-//  AssetManager Example
 //
-//  Created by Aid Vllasaliu on 2016-11-23.
-//  Copyright © 2016 Aid Vllasaliu. All rights reserved.
+//  AssetManager.swift
+//  Yemory_Swift
 //
-//  License: GNU GPLv3
+//  Created by Aid Vllasaliu on 2016-11-26.
+//  Copyright © 2016 Yemory. All rights reserved.
+//
 
 import Foundation
 import Photos;
@@ -17,7 +17,7 @@ protocol assetManagerNotificationProtocol {
 
 
 var assetManagerChunkSize: Int = 5000000
-func assetManagerAssetCountChunks(asset: assetInfo) -> Int { return Int(ceilf(Float(asset.size) / Float(assetManagerChunkSize))) }
+func assetManagerAssetCountChunks(asset: assetInfo) -> Int { return asset.chunkCount() }
 
 struct extractionResults {
     var status: String
@@ -38,7 +38,8 @@ class assetInfo{
     var dateTime = dateTimeBreakout()
     
     
-
+    func chunkCount() -> Int { return Int(ceilf(Float(self.size) / Float(assetManagerChunkSize))) }
+    
     
     func extractData(chunkIndex: Int, chunkComplete: @escaping (extractionResults) -> Void, extractionComplete: @escaping (extractionResults) -> Void){
         
@@ -80,7 +81,7 @@ class assetInfo{
                                         
                                         if assetManagerChunkSize >= self.size {
                                             results.data.append(data);
-                                            arm.cancelDataRequest(ID!) //Error occurs here!!!!!!
+                                            if results.data.count == self.size { arm.cancelDataRequest(ID!) }
                                         } else {
                                             if bytesRead >= startByte {
                                                 
@@ -115,7 +116,9 @@ class assetInfo{
                 },
                                      
                                      completionHandler:{(error: Error?) -> Void in
-                                        if error != nil { results.status = "error" }
+                                        if error != nil {
+                                            results.status = "error"
+                                        }
                                         
                                         extractionComplete(results)
                 }
@@ -135,7 +138,7 @@ class assetManager{
     private var assetsCount = 0
     
     var notificationReceiver: assetManagerNotificationProtocol? = nil
-
+    
     private func assembleAsset(assetIndex: Int, assemblyComplete: @escaping (assetInfo) -> Void) {
         
         DispatchQueue.global(qos: .background).async(execute: {
@@ -143,7 +146,7 @@ class assetManager{
             let fetchOptions = PHFetchOptions()
             fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending:true)]
             let fetchResult: PHFetchResult = PHAsset.fetchAssets(with: fetchOptions)
-
+            
             var resourceArray: [PHAssetResource]  = PHAssetResource.assetResources(for: fetchResult[assetIndex])
             
             let arm: PHAssetResourceManager = PHAssetResourceManager.default()
@@ -151,18 +154,22 @@ class assetManager{
             var dataSize: Int = 0
             
             arm.requestData(for: resourceArray[0], options: PHAssetResourceRequestOptions(),
-                                dataReceivedHandler: {(assetData: Data) -> Void in dataSize += assetData.count; },
+                            dataReceivedHandler: {(assetData: Data) -> Void in dataSize += assetData.count; },
+                            
+                            completionHandler: {(error: Error?) -> Void in
                                 
-                                completionHandler: {(error: Error?) -> Void in
-                                    if error == nil {
-                                        assemblyComplete(self.addAsset(assetIndex,
-                                                                       aAssetPathFull: resourceArray[0].originalFilename,
-                                                                       aAssetSize: dataSize,
-                                                                       aAssetDate: fetchResult[assetIndex].creationDate!)
-                                        )
-                                    }
+                                
+                                if error == nil {
+                                    assemblyComplete(self.addAsset(assetIndex,
+                                                                   aAssetPathFull: resourceArray[0].originalFilename,
+                                                                   aAssetSize: dataSize,
+                                                                   aAssetDate: fetchResult[assetIndex].creationDate!)
+                                    )
+                                } else {
+                                    print("AssetManager/assembleAsset(): ERROR")
                                 }
-                )
+            }
+            )
         });
     }
     
@@ -219,13 +226,14 @@ class assetManager{
         return assets.last!
     }
     
-   
+    
     
     private func triggerNext(triggerComplete: @escaping () -> Void){ assembleAsset(assetIndex: assets.count, assemblyComplete: { (asset: assetInfo) -> Void in triggerComplete() } )}
     
-    private func checkAssemblyStatus() -> Bool { if assets.count < assetsCount - 1 { return false } else { return true } }
+    private func checkAssemblyStatus() -> Bool { if assets.count < assetsCount { return false } else { return true } }
     
-    private func iterateAssets(){ triggerNext(triggerComplete: { () -> Void in
+    private func iterateAssets(){
+        triggerNext(triggerComplete: { () -> Void in
             if self.checkAssemblyStatus() == false {
                 self.iterateAssets()
             } else {
@@ -240,8 +248,10 @@ class assetManager{
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending:true)]
         let fetchResult: PHFetchResult = PHAsset.fetchAssets(with: fetchOptions)
-
+        
         assetsCount = fetchResult.count
+        
+        print("fetchResult.count = " + String(fetchResult.count))
         
         iterateAssets()
     }
