@@ -5,8 +5,7 @@
 
 import Foundation
 import Photos
-import CommonCrypto
-import Crypto
+import CryptoSwift
 
 protocol assetManagerNotificationProtocol {
     func onAssetAssembled(asset: assetInfo)
@@ -14,7 +13,7 @@ protocol assetManagerNotificationProtocol {
 }
 
 
-var assetManagerChunkSize: Int = 5000000
+var assetManagerChunkSize: Int = 500
 func assetManagerAssetCountChunks(asset: assetInfo) -> Int { return asset.chunkCount() }
 
 struct extractionResults {
@@ -80,7 +79,7 @@ class assetInfo{
                                         
                                         if assetManagerChunkSize >= self.size {
                                             results.data.append(data);
-                                            if results.data.count == self.size { arm.cancelDataRequest(ID!) }
+                                            if results.data.count == self.size { cancelServing = true; }
                                         } else {
                                             if bytesRead >= startByte {
                                                 
@@ -105,11 +104,11 @@ class assetInfo{
                                                 }
                                             }
                                         }
-                                        
                                         if cancelServing == true {
-                                            results.MD5 = String(data: results.data.md5, encoding: .utf8)!
+                                            results.MD5 = results.data.md5().toHexString()
+                                            
                                             chunkComplete(results)
-                                            arm.cancelDataRequest(ID!) //Error occurs here!!!!!!
+                                            arm.cancelDataRequest(ID!) //Error occurs here!!!!!                                       
                                         }
                                         
                                         
