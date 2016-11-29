@@ -79,7 +79,7 @@ The code will set a desired chunk size, followed by extracting a chunk of data f
             print("1 asset added!");
             
             //print some info about the newly added asset
-            print(asset.filename + " size is " + String(asset.size) + " Bytes. " + String(assetManagerAssetCountChunks(asset: asset)) + " chunks available.")
+            print(asset.filename + " size is " + String(asset.size) + " Bytes. " + String(asset.chunkCount()) + " chunks available.")
         }
 
     }
