@@ -1,16 +1,18 @@
 # AssetManager
 
-AssetManager
+###AssetManager
 
-What is AssetManager?
+##What is AssetManager?
 
 AssetManager is a simple asset manager for iOS using Swift 3 that increases flexibility of the asset resource management thingy-thing-unnecessary-complicated(in my opinion)-iOS asset manager.
 
 As you can tell, I'm not too happy with the way you need to recieve an asset in iOS as of right now.
 
+##Prerequisite
 
+AssetManager uses [CryptoSwift](https://github.com/krzyzanowskim/CryptoSwift).
 
-How does AssetManager work and how do I use it?
+##How does AssetManager work and how do I use it?
 
 AssetManager allows you to read chunks of data from an asset.
 You specify the size of the chunks and then choose which chunk in the data you want to extract.
