@@ -1,14 +1,12 @@
-//
 //  AssetManager.swift
-//  Yemory_Swift
 //
 //  Created by Aid Vllasaliu on 2016-11-26.
-//  Copyright © 2016 Yemory. All rights reserved.
-//
+//  Copyright © 2016 Aid Vllasaliu. All rights reserved.
 
 import Foundation
-import Photos;
-
+import Photos
+import CommonCrypto
+import Crypto
 
 protocol assetManagerNotificationProtocol {
     func onAssetAssembled(asset: assetInfo)
@@ -24,6 +22,7 @@ struct extractionResults {
     var chunkIndex = 0
     var assetInfo: assetInfo
     var data = Data()
+    var MD5 = ""
 }
 
 
@@ -64,7 +63,7 @@ class assetInfo{
             
             var startCut = 0;
             
-            var results = extractionResults(status: "ok", chunkIndex: chunkIndex, assetInfo: self, data: Data())
+            var results = extractionResults(status: "ok", chunkIndex: chunkIndex, assetInfo: self, data: Data(), MD5: "")
             
             
             autoreleasepool {
@@ -108,6 +107,7 @@ class assetInfo{
                                         }
                                         
                                         if cancelServing == true {
+                                            results.MD5 = String(data: results.data.md5, encoding: .utf8)!
                                             chunkComplete(results)
                                             arm.cancelDataRequest(ID!) //Error occurs here!!!!!!
                                         }
