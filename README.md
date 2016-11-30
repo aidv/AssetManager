@@ -10,7 +10,8 @@ As you can tell, I'm not too happy with the way you need to recieve an asset in 
 
 ##Prerequisite
 
-AssetManager uses [CryptoSwift](https://github.com/krzyzanowskim/CryptoSwift).
+AssetManager can use [CryptoSwift](https://github.com/krzyzanowskim/CryptoSwift).
+Just open AssetManager.swift and uncomment any CryptoSwift related code (3 lines in total)
 
 ##How does AssetManager work and how do I use it?
 
