@@ -5,7 +5,7 @@
 
 import Foundation
 import Photos
-import CryptoSwift
+//import CryptoSwift
 
 protocol assetManagerNotificationProtocol {
     func onAssetAssembled(asset: assetInfo)
@@ -13,7 +13,7 @@ protocol assetManagerNotificationProtocol {
 }
 
 
-var assetManagerChunkSize: Int = 500
+var assetManagerChunkSize: Int = 5000000
 func assetManagerAssetCountChunks(asset: assetInfo) -> Int { return asset.chunkCount() }
 
 struct extractionResults {
@@ -79,7 +79,11 @@ class assetInfo{
                                         
                                         if assetManagerChunkSize >= self.size {
                                             results.data.append(data);
-                                            if results.data.count == self.size { cancelServing = true; }
+                                            
+                                            if results.data.count == self.size {
+                                                results.MD5 = "nil"//results.data.md5().toHexString()
+                                                arm.cancelDataRequest(ID!)
+                                            }
                                         } else {
                                             if bytesRead >= startByte {
                                                 
@@ -104,11 +108,11 @@ class assetInfo{
                                                 }
                                             }
                                         }
+                                        
                                         if cancelServing == true {
-                                            results.MD5 = results.data.md5().toHexString()
-                                            
+                                            results.MD5 = "nil"//results.data.md5().toHexString()
                                             chunkComplete(results)
-                                            arm.cancelDataRequest(ID!) //Error occurs here!!!!!                                       
+                                            arm.cancelDataRequest(ID!) //Error occurs here!!!!!
                                         }
                                         
                                         
@@ -120,8 +124,7 @@ class assetInfo{
                                         }
                                         
                                         extractionComplete(results)
-                }
-                    
+                }                    
                 )
             }
             
