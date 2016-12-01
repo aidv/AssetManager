@@ -26,6 +26,7 @@ struct extractionResults {
 
 
 class assetInfo{
+    var parent       : assetManager? = nil
     var id           = NSUUID().uuidString;
     var index        = Int()
     var fullpath     = String()
@@ -36,19 +37,39 @@ class assetInfo{
     var dateTime = dateTimeBreakout()
     
     
+    init(_ aParent: assetManager){ parent = aParent }
+    
     func chunkCount() -> Int { return Int(ceilf(Float(self.size) / Float(assetManagerChunkSize))) }
     
     
-    func extractData(chunkIndex: Int, chunkComplete: @escaping (extractionResults) -> Void, extractionComplete: @escaping (extractionResults) -> Void){
+    func asyncExtractData(chunkIndex: Int, chunkComplete: @escaping (extractionResults) -> Void, extractionComplete: @escaping (extractionResults) -> Void){
+        parent!.asyncExtractData(asset: self, chunkIndex: chunkIndex,
+                           chunkComplete: {(eR: extractionResults) -> Void in chunkComplete(eR)}, extractionComplete: {(eR: extractionResults) -> Void in extractionComplete(eR)}
+        )
+    }
+    
+    
+    
+}
+
+
+
+class assetManager{
+    var assets = [assetInfo]()
+    private var assetsCount = 0
+    
+    private let extractionThread = DispatchQueue(label: "extractionThread", qos: .background, target: nil)
+    
+    var notificationReceiver: assetManagerNotificationProtocol? = nil
+    
+    
+    func asyncExtractData(asset: assetInfo, chunkIndex: Int, chunkComplete: @escaping (extractionResults) -> Void, extractionComplete: @escaping (extractionResults) -> Void){
         
-        DispatchQueue.global(qos: .background).async(execute: {
+        extractionThread.async(execute: {
+            
             let fetchOptions = PHFetchOptions()
             fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending:true)]
             let fetchResult: PHFetchResult = PHAsset.fetchAssets(with: fetchOptions)
-            
-            var resourceArray: [PHAssetResource]  = PHAssetResource.assetResources(for: fetchResult[self.index])
-            
-            let arm: PHAssetResourceManager = PHAssetResourceManager.default()
             
             
             var bytesRead: Int = 0;
@@ -62,84 +83,79 @@ class assetInfo{
             
             var startCut = 0;
             
-            var results = extractionResults(status: "ok", chunkIndex: chunkIndex, assetInfo: self, data: Data(), MD5: "")
+            var results = extractionResults(status: "ok", chunkIndex: chunkIndex, assetInfo: asset, data: Data(), MD5: "")
+            
             
             
             autoreleasepool {
                 
                 var ID: PHAssetResourceDataRequestID? = nil
                 
-                ID = arm.requestData(for: resourceArray[0], options: PHAssetResourceRequestOptions(),
-                                     dataReceivedHandler:{(data: Data) -> Void in
-                                        
-                                        bytesReadBefore = bytesRead
-                                        bytesRead += data.count
-                                        
-                                        
-                                        
-                                        if assetManagerChunkSize >= self.size {
-                                            results.data.append(data);
-                                            
-                                            if results.data.count == self.size {
-                                                results.MD5 = "nil"//results.data.md5().toHexString()
-                                                arm.cancelDataRequest(ID!)
-                                            }
-                                        } else {
-                                            if bytesRead >= startByte {
-                                                
-                                                if foundStartByte == false {
-                                                    if chunkIndex > 0 { startCut = startByte - bytesReadBefore}
-                                                    foundStartByte = true;
-                                                }
-                                                
-                                                if foundStartByte == true {
-                                                    results.data.append(data)
-                                                    
-                                                    if data.count == 0 {
-                                                        results.data = results.data.subdata(in: Range(uncheckedBounds: (lower: startCut, upper: results.data.count )))
-                                                        cancelServing = true
-                                                    }
-                                                    
-                                                    if bytesRead >= startByte + assetManagerChunkSize && results.data.count >= assetManagerChunkSize {
-                                                        results.data = results.data.subdata(in: Range(uncheckedBounds: (lower: startCut, upper: startCut + assetManagerChunkSize)))
-                                                        cancelServing = true;
-                                                        
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        
-                                        if cancelServing == true {
-                                            results.MD5 = "nil"//results.data.md5().toHexString()
-                                            chunkComplete(results)
-                                            arm.cancelDataRequest(ID!) //Error occurs here!!!!!
-                                        }
-                                        
-                                        
+                ID = PHAssetResourceManager.default().requestData(for: PHAssetResource.assetResources(for: fetchResult[asset.index])[0], options: PHAssetResourceRequestOptions(),
+                                                                  dataReceivedHandler:{(data: Data) -> Void in
+                                                                    
+                                                                    bytesReadBefore = bytesRead
+                                                                    bytesRead += data.count
+                                                                    
+                                                                    if assetManagerChunkSize >= asset.size {
+                                                                        
+                                                                        results.data.append(data);
+                                                                        
+                                                                        if results.data.count == asset.size {
+                                                                            results.MD5 = "nil"//results.data.md5().toHexString()
+                                                                            
+                                                                            PHAssetResourceManager.default().cancelDataRequest(ID!)
+                                                                        }
+                                                                    } else {
+                                                                        
+                                                                        if bytesRead >= startByte {
+                                                                            
+                                                                            if foundStartByte == false {
+                                                                                if chunkIndex > 0 { startCut = startByte - bytesReadBefore}
+                                                                                foundStartByte = true;
+                                                                            }
+                                                                            
+                                                                            if foundStartByte == true {
+                                                                                results.data.append(data)
+                                                                                
+                                                                                if data.count == 0 {
+                                                                                    results.data = results.data.subdata(in: Range(uncheckedBounds: (lower: startCut, upper: results.data.count )))
+                                                                                    cancelServing = true
+                                                                                }
+                                                                                
+                                                                                if bytesRead >= startByte + assetManagerChunkSize && results.data.count >= assetManagerChunkSize {
+                                                                                    results.data = results.data.subdata(in: Range(uncheckedBounds: (lower: startCut, upper: startCut + assetManagerChunkSize)))
+                                                                                    cancelServing = true;
+                                                                                    
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    if cancelServing == true {
+                                                                        
+                                                                        results.MD5 = "nil"//results.data.md5().toHexString()
+                                                                        chunkComplete(results)
+                                                                        
+                                                                        PHAssetResourceManager.default().cancelDataRequest(ID!)
+                                                                    }
+                                                                    
+                                                                    
                 },
-                                     
-                                     completionHandler:{(error: Error?) -> Void in
-                                        if error != nil {
-                                            results.status = "error"
-                                        }
-                                        
-                                        extractionComplete(results)
-                }                    
+                                                                  
+                                                                  completionHandler:{(error: Error?) -> Void in
+                                                                    
+                                                                    if error != nil { results.status = "error" }
+                                                                    
+                                                                    extractionComplete(results)
+                }
                 )
             }
             
         }
-        )}
-    
-}
+    )
+    }
 
-
-
-class assetManager{
-    var assets = [assetInfo]()
-    private var assetsCount = 0
-    
-    var notificationReceiver: assetManagerNotificationProtocol? = nil
     
     private func assembleAsset(assetIndex: Int, assemblyComplete: @escaping (assetInfo) -> Void) {
         
@@ -204,7 +220,7 @@ class assetManager{
         
         
         
-        assets.append(assetInfo())
+        assets.append(assetInfo(self))
         let aI: assetInfo = assets.last!
         
         
