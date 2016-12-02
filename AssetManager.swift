@@ -87,12 +87,13 @@ class assetManager{
             
             
             
+            
             autoreleasepool {
                 
                 var ID: PHAssetResourceDataRequestID? = nil
                 
                 ID = PHAssetResourceManager.default().requestData(for: PHAssetResource.assetResources(for: fetchResult[asset.index])[0], options: PHAssetResourceRequestOptions(),
-                                                                  dataReceivedHandler:{(data: Data) -> Void in
+                                                                dataReceivedHandler:{(data: Data) -> Void in
                                                                     
                                                                     bytesReadBefore = bytesRead
                                                                     bytesRead += data.count
@@ -103,8 +104,6 @@ class assetManager{
                                                                         
                                                                         if results.data.count == asset.size {
                                                                             results.MD5 = "nil"//results.data.md5().toHexString()
-                                                                            
-                                                                            PHAssetResourceManager.default().cancelDataRequest(ID!)
                                                                         }
                                                                     } else {
                                                                         
@@ -143,12 +142,12 @@ class assetManager{
                                                                     
                 },
                                                                   
-                                                                  completionHandler:{(error: Error?) -> Void in
-                                                                    
-                                                                    if error != nil { results.status = "error" }
-                                                                    
-                                                                    extractionComplete(results)
-                }
+                                                                completionHandler:{(error: Error?) -> Void in
+                                                                    if cancelServing == false {
+                                                                        if error != nil { results.status = "error" }
+                                                                        extractionComplete(results)
+                                                                    }
+                                                                }
                 )
             }
             
